@@ -10,15 +10,17 @@ import (
 
 	"strings"
 
-	"fmt"
+	"io/ioutil"
 
+	"fmt"
 	"strconv"
 
 	"github.com/gocolly/colly"
 )
 
 type bookScrapper struct {
-	Config *Config
+	Config     *Config
+	BookStyles []byte
 }
 
 func NewBookScrapper(config *Config) *bookScrapper {
@@ -38,7 +40,13 @@ func (bs *bookScrapper) GetHtmlPages() {
 	c.SetCookies(bs.Config.Url, cookies)
 
 	c.OnHTML("html", func(e *colly.HTMLElement) {
-		writeHtml(e.Request.URL.Path, e.Response.Body)
+		bs.writeHtml(e.Request.URL.Path, e.Response.Body)
+	})
+
+	c.OnHTML("link", func(e *colly.HTMLElement) {
+		link := e.Attr("href")
+		styles := getStyles(e.Request.AbsoluteURL(link))
+		bs.BookStyles = append(bs.BookStyles, styles...)
 	})
 
 	c.OnHTML("img", func(e *colly.HTMLElement) {
@@ -93,7 +101,7 @@ func saveImage(url string, path string) {
 	file.Close()
 }
 
-func writeHtml(path string, content []byte) {
+func (bs *bookScrapper) writeHtml(path string, content []byte) {
 
 	fileName := strings.TrimSuffix(path, filepath.Ext(path)) + ".html"
 
@@ -111,10 +119,27 @@ func writeHtml(path string, content []byte) {
 	defer file.Close()
 
 	c := parseBody(content)
-	styles := getStyles()
-	withStyles := append(c, styles...)
+	withStyles := append(c, bs.BookStyles...)
 
 	if _, err := file.Write(withStyles); err != nil {
 		panic(err)
 	}
+}
+
+func getStyles(link string) []byte {
+	response, e := http.Get(link)
+	if e != nil {
+		log.Fatal(e)
+	}
+
+	defer response.Body.Close()
+
+	styles, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	style := "<style>" + string(styles) + "</style>"
+
+	return []byte(style)
 }

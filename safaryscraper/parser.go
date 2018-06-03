@@ -8,8 +8,6 @@ import (
 
 	"path/filepath"
 
-	"io/ioutil"
-
 	"golang.org/x/net/html"
 )
 
@@ -93,21 +91,4 @@ func getContent(doc *html.Node) (*html.Node, error) {
 		return b, nil
 	}
 	return nil, errors.New("missing div#container")
-}
-
-// Todo download styles
-func getStyles() []byte {
-	filePath, err := filepath.Abs("../BooksScrapper/styles/styles.css")
-	if err != nil {
-		panic(err)
-	}
-
-	d, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		panic(err)
-	}
-
-	style := "<style>" + string(d) + "</style>"
-
-	return []byte(style)
 }
