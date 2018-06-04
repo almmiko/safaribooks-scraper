@@ -32,7 +32,7 @@ func getHtml(n *html.Node) []byte {
 }
 
 func getContent(doc *html.Node) (*html.Node, error) {
-	var b *html.Node
+	// var b *html.Node
 	var f func(*html.Node)
 	var navLinks []*html.Node
 
@@ -49,15 +49,15 @@ func getContent(doc *html.Node) (*html.Node, error) {
 				}
 			}
 
-			isDiv := n.Data == "div"
-			if isDiv {
-				for _, a := range n.Attr {
-					if a.Key == "id" && a.Val == "container" {
-						b = n
-						break
-					}
-				}
-			}
+			// isDiv := n.Data == "div"
+			// if isDiv {
+			// 	for _, a := range n.Attr {
+			// 		if a.Key == "id" && a.Val == "container" {
+			// 			b = n
+			// 			break
+			// 		}
+			// 	}
+			// }
 		}
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			f(c)
@@ -87,8 +87,8 @@ func getContent(doc *html.Node) (*html.Node, error) {
 		link.Attr = linkAttr
 	}
 
-	if b != nil {
-		return b, nil
+	if doc != nil {
+		return doc, nil
 	}
 	return nil, errors.New("missing div#container")
 }

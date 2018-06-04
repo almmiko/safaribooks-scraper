@@ -10,9 +10,10 @@ import (
 
 	"strings"
 
-	"io/ioutil"
+	"sync"
 
 	"fmt"
+
 	"strconv"
 
 	"github.com/gocolly/colly"
@@ -21,6 +22,7 @@ import (
 type bookScrapper struct {
 	Config     *Config
 	BookStyles []byte
+	once       sync.Once
 }
 
 func NewBookScrapper(config *Config) *bookScrapper {
@@ -40,13 +42,17 @@ func (bs *bookScrapper) GetHtmlPages() {
 	c.SetCookies(bs.Config.Url, cookies)
 
 	c.OnHTML("html", func(e *colly.HTMLElement) {
-		bs.writeHtml(e.Request.URL.Path, e.Response.Body)
+		bs.once.Do(func() {
+			styles := getStyles(e)
+			bs.BookStyles = append(bs.BookStyles, styles...)
+		})
+
+		bs.writeHtml(e.Request.URL.Path, e.Response.Body, e)
 	})
 
 	c.OnHTML("link", func(e *colly.HTMLElement) {
 		link := e.Attr("href")
-		styles := getStyles(e.Request.AbsoluteURL(link))
-		bs.BookStyles = append(bs.BookStyles, styles...)
+		fetchStyles(e.Request.AbsoluteURL(link), link)
 	})
 
 	c.OnHTML("img", func(e *colly.HTMLElement) {
@@ -101,7 +107,7 @@ func saveImage(url string, path string) {
 	file.Close()
 }
 
-func (bs *bookScrapper) writeHtml(path string, content []byte) {
+func (bs *bookScrapper) writeHtml(path string, content []byte, e *colly.HTMLElement) {
 
 	fileName := strings.TrimSuffix(path, filepath.Ext(path)) + ".html"
 
@@ -126,20 +132,48 @@ func (bs *bookScrapper) writeHtml(path string, content []byte) {
 	}
 }
 
-func getStyles(link string) []byte {
-	response, e := http.Get(link)
+func getStyles(html *colly.HTMLElement) []byte {
+	var styles []byte
+
+	s := html.DOM.Find("style")
+
+	for _, n := range s.Nodes {
+		styleHtml := getHtml(n)
+		styles = append(styles, styleHtml...)
+	}
+
+	return styles
+}
+
+func fetchStyles(url string, path string) {
+
+	filePath, err := filepath.Abs("../BooksScrapper/html/" + path)
+	if err != nil {
+		panic(err)
+	}
+
+	if _, err := os.Stat(filePath); err == nil {
+		return
+	}
+
+	response, e := http.Get(url)
 	if e != nil {
 		log.Fatal(e)
 	}
 
 	defer response.Body.Close()
 
-	styles, err := ioutil.ReadAll(response.Body)
+	createDir(filePath)
+
+	file, err := os.Create(filePath)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	style := "<style>" + string(styles) + "</style>"
+	_, err = io.Copy(file, response.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	return []byte(style)
+	file.Close()
 }

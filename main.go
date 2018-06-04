@@ -3,6 +3,7 @@ package main
 import (
 	"BooksScrapper/safaryscraper"
 	"log"
+
 	"os"
 
 	"github.com/joho/godotenv"
