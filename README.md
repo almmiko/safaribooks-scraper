@@ -3,6 +3,7 @@
 
 ## Usage
 
+* Install dependencies ```dep ensure```
 * Rename .env.example -> .env
 * Login to safaribooks
 * Add you safaribooks cookies to .env file
